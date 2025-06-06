@@ -5,81 +5,81 @@
   <title>Custom A/B Image Slider</title>
   <style>
     /***************************************
-     1) The slider container must “see” at least one non-absolute child 
-        so it can inherit that child’s height.
-     2) We will position only the “After” image absolutely on top of the “Before” image.
+     1) Let the “Before” image live in normal flow.
+        That way, `.ab-slider` automatically takes on its width & height.
+     2) We only absolutely position the “After” image on top, and clip its container.
     ***************************************/
     .ab-slider {
       position: relative;
-      width: 4408px;       /* Adjust to your desired max width */
-      max-width: 100%;
-      overflow: hidden;
-      margin: 0 auto;     /* Center horizontally */
-      user-select: none;  /* Prevent text selection while dragging */
-      /* NOTE: No explicit height here. 
-         The height will be driven by the “Before” image below. */
+      display: inline-block; /* shrink‐wrap to the Before image size */
+      user-select: none;     /* prevent accidental text selection while dragging */
     }
 
     /***************************************
-     “Before” image: stays in normal flow so the container has a height.
-     We give it width:100% so it scales responsively.
+     “Before” image:
+     • Normal flow → lets .ab-slider inherit its intrinsic size.
+     • width: 100% (of its own natural/native width) so it’s responsive if the browser shrinks.
     ***************************************/
     .ab-slider > img.before-img {
       display: block;
-      width: 100%;
-      height: auto;     /* preserve aspect ratio */
-      position: relative; /* keep it in the normal document flow */
-      z-index: 0;       /* Behind everything else */
+      width: 100%;   /* fill whatever container it’s in (or native width by default) */
+      height: auto;  /* maintain aspect ratio */
+      position: relative; /* remain in normal flow */
+      z-index: 0;        /* below the After image */
     }
 
     /***************************************
-     The “After” wrapper: 
-     • absolutely positioned atop the “Before” image
-     • overflow:hidden to mask the After image
-     • initial width = 50% (so you see half of “After”)
+     The “After” wrapper:
+     • Absolutely positioned atop the Before image.
+     • “width: 50%” means “show half of the After image initially.”
+     • “height: 100%” ensures it matches the Before image’s height.
+     • “overflow: hidden” truly clips the After image inside this box.
     ***************************************/
     .ab-slider .after {
       position: absolute;
       top: 0;
       left: 0;
-      width: 50%;        /* Start by revealing 50% of the After image */
-      height: 100%;      /* Match the parent’s (container’s) height */
-      overflow: hidden;  /* Clip any part of the child image that spills outside */
-      z-index: 1;        /* Above the “Before” image */
-      pointer-events: none; /* Let the handle capture all drag events */
+      width: 50%;       /* reveal 50% of the After image at start */
+      height: 100%;     /* match the Before image’s height exactly */
+      overflow: hidden; /* clip any part of the After image that spills out */
+      z-index: 1;       /* on top of the Before image */
+      pointer-events: none; /* so the handle (below) still captures drags */
     }
 
     /***************************************
      The “After” image itself:
-     Must fill the entire slider width (100%), 
-     but lives inside .after so only part is shown.
+     • Absolutely positioned exactly on top of the Before image.
+     • “width: 100%” forces it to match the entire slider width—in other words,
+       it always stays the same size as the Before image, never “shrinks.” 
+     • Because .after is “overflow:hidden,” you only see the left portion of it.
     ***************************************/
     .ab-slider .after img.after-img {
-      position: absolute; /* Stack exactly on top of the Before image */
+      position: absolute; /* stack exactly on top of the Before image */
       top: 0;
       left: 0;
-      width: 100%;       /* Fill the full slider width (not just the wrapper) */
-      height: auto;      /* Preserve aspect ratio */
+      width: 100%;        /* always fill the slider’s full width */
+      height: auto;       /* maintain aspect ratio */
       z-index: 1;
     }
 
     /***************************************
-     The draggable handle (vertical bar):
-     Its left:XX% gets updated in JS as you drag.
+     The draggable “handle” (vertical bar):
+     • We position it at 50% to begin with.
+     • Its left:XX% will shift as you drag.
     ***************************************/
     .ab-slider .handle {
       position: absolute;
       top: 0;
-      left: 50%;          /* Start in the middle */
-      width: 4px;         /* Thickness of the bar */
-      height: 100%;       /* Stretch the full slider height */
+      left: 50%;          /* start in the middle */
+      width: 4px;         /* thickness of the divider line */
+      height: 100%;       /* full slider height */
       background: rgba(255, 255, 255, 0.9);
       cursor: ew-resize;
-      z-index: 2;         /* Above both images */
-      transform: translateX(-2px); /* Center the 4px bar */
+      z-index: 2;         /* on top of both images */
+      transform: translateX(-2px); /* center the 4px-wide bar */
     }
 
-    /* A little circular “dot” in the middle of the handle for UX */
+    /* Optional: small circular “dot” on the handle for better UX */
     .ab-slider .handle::before {
       content: '';
       position: absolute;
@@ -95,25 +95,24 @@
 </head>
 <body>
   <div class="ab-slider" id="mySlider">
-    <!-- 1) The “Before” image lives here in normal flow -->
-    <!--    Replace “images/before.png” with your own PNG path -->
+    <!-- 1) “Before” image: stays in flow and sets the slider’s size -->
     <img
       class="before-img"
       src="images/before.png"
       alt="Before image"
     />
 
-    <!-- 2) The “After” wrapper that clips everything outside its width -->
+    <!-- 2) “After” wrapper: starts at 50% width, clips its child -->
     <div class="after">
-      <!-- Replace “images/after.png” with your own PNG path -->
+      <!-- 3) “After” image: always 100% width, sits exactly on top of Before -->
       <img
         class="after-img"
-        src="images/after2.png"
+        src="images/after.png"
         alt="After image"
       />
     </div>
 
-    <!-- 3) The draggable handle -->
+    <!-- 4) The draggable handle -->
     <div class="handle" id="sliderHandle"></div>
   </div>
 
@@ -127,33 +126,33 @@
       function onDrag(e) {
         if (!isDragging) return;
 
-        // 1) Get slider bounds
+        // 1) Get slider’s bounding rectangle
         const rect = slider.getBoundingClientRect();
 
-        // 2) Compute pointer X relative to slider’s left
+        // 2) Compute X relative to slider’s left edge
         let x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
 
-        // 3) Clamp x into [0 .. rect.width]
+        // 3) Clamp x between [0 .. rect.width]
         if (x < 0) x = 0;
         if (x > rect.width) x = rect.width;
 
-        // 4) Convert to percentage (0–100)
+        // 4) Convert x→percentage in [0..100]
         const pct = (x / rect.width) * 100;
 
-        // 5) Apply that percent to the “After” wrapper width and handle position
+        // 5) Apply that pct to the “After” wrapper width and the handle position
         afterContainer.style.width = pct + '%';
         handle.style.left = pct + '%';
       }
 
-      // Start dragging when handle is pressed
+      // Begin dragging when user presses down on the handle
       handle.addEventListener('mousedown', () => { isDragging = true; });
       handle.addEventListener('touchstart', () => { isDragging = true; });
 
-      // Update during pointer move
+      // Update while moving pointer
       document.addEventListener('mousemove', onDrag);
       document.addEventListener('touchmove', onDrag);
 
-      // Stop dragging when pointer is released
+      // Stop dragging on release
       document.addEventListener('mouseup', () => { isDragging = false; });
       document.addEventListener('touchend', () => { isDragging = false; });
     })();
