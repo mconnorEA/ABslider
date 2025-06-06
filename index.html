@@ -2,84 +2,82 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Custom A/B Image Slider</title>
+  <title>Custom A/B Image Slider (Pixel-Based)</title>
   <style>
-    /***************************************
-     1) Let the “Before” image live in normal flow.
-        That way, `.ab-slider` automatically takes on its width & height.
-     2) We only absolutely position the “After” image on top, and clip its container.
-    ***************************************/
+    /* 
+      1) .ab-slider wraps the “Before” image in normal flow, so its width & height 
+         come directly from the image itself (intrinsic or responsive). 
+      2) We position the “After” wrapper absolutely on top and clip it in px. 
+    */
     .ab-slider {
       position: relative;
-      display: inline-block; /* shrink‐wrap to the Before image size */
-      user-select: none;     /* prevent accidental text selection while dragging */
+      display: inline-block;    /* shrink-wrap to the Before image’s width */
+      user-select: none;        /* prevent text selection while dragging */
+      overflow: hidden;
     }
 
-    /***************************************
-     “Before” image:
-     • Normal flow → lets .ab-slider inherit its intrinsic size.
-     • width: 100% (of its own natural/native width) so it’s responsive if the browser shrinks.
-    ***************************************/
+    /* 
+      “Before” image defines the slider’s natural size. 
+      width: 100% makes it responsive if you wrap .ab-slider in a smaller parent. 
+    */
     .ab-slider > img.before-img {
       display: block;
-      width: 100%;   /* fill whatever container it’s in (or native width by default) */
-      height: auto;  /* maintain aspect ratio */
-      position: relative; /* remain in normal flow */
-      z-index: 0;        /* below the After image */
+      width: 100%;   /* fill the container (or intrinsic size if container is auto) */
+      height: auto;  /* preserve aspect ratio */
     }
 
-    /***************************************
-     The “After” wrapper:
-     • Absolutely positioned atop the Before image.
-     • “width: 50%” means “show half of the After image initially.”
-     • “height: 100%” ensures it matches the Before image’s height.
-     • “overflow: hidden” truly clips the After image inside this box.
-    ***************************************/
+    /* 
+      The “After” wrapper:
+      • absolutely positioned on top of the Before image 
+      • initial width = 50% of the slider’s current width (set by JS) 
+      • height = 100% of slider’s height 
+      • overflow:hidden → only the left portion of the After image is visible  
+    */
     .ab-slider .after {
       position: absolute;
       top: 0;
       left: 0;
-      width: 50%;       /* reveal 50% of the After image at start */
-      height: 100%;     /* match the Before image’s height exactly */
-      overflow: hidden; /* clip any part of the After image that spills out */
-      z-index: 1;       /* on top of the Before image */
-      pointer-events: none; /* so the handle (below) still captures drags */
+      width: 0px;        /* JS will set this to half of slider width on page load */
+      height: 100%;      /* match the entire slider height */
+      overflow: hidden;  /* clip any part of the child After image outside this px width */
+      z-index: 1;        /* atop the Before image */
+      pointer-events: none; /* let the handle capture drags */
     }
 
-    /***************************************
-     The “After” image itself:
-     • Absolutely positioned exactly on top of the Before image.
-     • “width: 100%” forces it to match the entire slider width—in other words,
-       it always stays the same size as the Before image, never “shrinks.” 
-     • Because .after is “overflow:hidden,” you only see the left portion of it.
-    ***************************************/
+    /* 
+      The “After” image:
+      • absolutely on top of the Before image (so it lines up exactly). 
+      • width: 100% makes it exactly match slider’s width in px. 
+    */
     .ab-slider .after img.after-img {
-      position: absolute; /* stack exactly on top of the Before image */
+      position: absolute;
       top: 0;
       left: 0;
-      width: 100%;        /* always fill the slider’s full width */
-      height: auto;       /* maintain aspect ratio */
+      width: 100%;      /* always fill the slider’s full width in px */
+      height: auto;     /* preserve aspect ratio */
       z-index: 1;
     }
 
-    /***************************************
-     The draggable “handle” (vertical bar):
-     • We position it at 50% to begin with.
-     • Its left:XX% will shift as you drag.
-    ***************************************/
+    /* 
+      The draggable handle (vertical bar):
+      • positioned at X px (JS sets left: X px). 
+      • height: 100% to span the entire slider height. 
+    */
     .ab-slider .handle {
       position: absolute;
       top: 0;
-      left: 50%;          /* start in the middle */
-      width: 4px;         /* thickness of the divider line */
-      height: 100%;       /* full slider height */
+      left: 50px;        /* initial X px (updated by JS to half of slider width) */
+      width: 4px;        /* thickness of the vertical divider */
+      height: 100%;
       background: rgba(255, 255, 255, 0.9);
       cursor: ew-resize;
-      z-index: 2;         /* on top of both images */
-      transform: translateX(-2px); /* center the 4px-wide bar */
+      z-index: 2;        /* above both images */
+      transform: translateX(-2px); /* center the 4px bar at its left coordinate */
     }
 
-    /* Optional: small circular “dot” on the handle for better UX */
+    /* 
+      A small circular “dot” on the handle for better UX 
+    */
     .ab-slider .handle::before {
       content: '';
       position: absolute;
@@ -94,17 +92,22 @@
   </style>
 </head>
 <body>
+  <!-- 
+    1) BEFORE image appears in normal flow. 
+    2) AFTER wrapper (set to clip via px). 
+    3) Handle sits on top. 
+  -->
   <div class="ab-slider" id="mySlider">
-    <!-- 1) “Before” image: stays in flow and sets the slider’s size -->
+    <!-- “Before” image (in normal flow) -->
     <img
       class="before-img"
       src="images/before.png"
       alt="Before image"
     />
 
-    <!-- 2) “After” wrapper: starts at 50% width, clips its child -->
-    <div class="after">
-      <!-- 3) “After” image: always 100% width, sits exactly on top of Before -->
+    <!-- “After” wrapper that clips its child in px -->
+    <div class="after" id="afterWrapper">
+      <!-- “After” image must be exactly the same image size as Before -->
       <img
         class="after-img"
         src="images/after.png"
@@ -112,7 +115,7 @@
       />
     </div>
 
-    <!-- 4) The draggable handle -->
+    <!-- Draggable vertical handle -->
     <div class="handle" id="sliderHandle"></div>
   </div>
 
@@ -120,41 +123,56 @@
     (function() {
       const slider = document.getElementById('mySlider');
       const handle = document.getElementById('sliderHandle');
-      const afterContainer = slider.querySelector('.after');
+      const afterWrapper = document.getElementById('afterWrapper');
       let isDragging = false;
+
+      // Helper: Set initial wrapper width to half of slider’s width (in px)
+      function initSlider() {
+        // Wait until slider’s images have fully loaded to get correct dimensions
+        const beforeImg = slider.querySelector('img.before-img');
+        if (!beforeImg.complete) {
+          // If the “Before” image isn’t fully loaded, retry in 50ms
+          setTimeout(initSlider, 50);
+          return;
+        }
+        // Now the slider DIV has the correct width
+        const sliderRect = slider.getBoundingClientRect();
+        const initialHalf = sliderRect.width / 2; // half in px
+        // Set both the clipping wrapper and the handle to that half-width
+        afterWrapper.style.width = initialHalf + 'px';
+        handle.style.left = initialHalf + 'px';
+      }
 
       function onDrag(e) {
         if (!isDragging) return;
-
         // 1) Get slider’s bounding rectangle
         const rect = slider.getBoundingClientRect();
-
-        // 2) Compute X relative to slider’s left edge
+        // 2) Compute X relative to slider’s left edge (in px)
         let x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-
         // 3) Clamp x between [0 .. rect.width]
         if (x < 0) x = 0;
         if (x > rect.width) x = rect.width;
-
-        // 4) Convert x→percentage in [0..100]
-        const pct = (x / rect.width) * 100;
-
-        // 5) Apply that pct to the “After” wrapper width and the handle position
-        afterContainer.style.width = pct + '%';
-        handle.style.left = pct + '%';
+        // 4) Set the wrapper’s width in px (clip the After image) and move the handle
+        afterWrapper.style.width = x + 'px';
+        handle.style.left = x + 'px';
       }
 
-      // Begin dragging when user presses down on the handle
+      // When user presses the handle, start dragging
       handle.addEventListener('mousedown', () => { isDragging = true; });
       handle.addEventListener('touchstart', () => { isDragging = true; });
 
-      // Update while moving pointer
+      // As the pointer moves, update the wrapper’s px width
       document.addEventListener('mousemove', onDrag);
       document.addEventListener('touchmove', onDrag);
 
-      // Stop dragging on release
+      // When user releases, stop dragging
       document.addEventListener('mouseup', () => { isDragging = false; });
       document.addEventListener('touchend', () => { isDragging = false; });
+
+      // Initialize once the page loads
+      window.addEventListener('load', initSlider);
+      // If images were already loaded, call it immediately
+      if (document.readyState === 'complete') initSlider();
     })();
   </script>
 </body>
