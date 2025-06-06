@@ -2,56 +2,61 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Parameterized A/B Slider (Responsive)</title>
+  <title>Square‐Friendly A/B Slider</title>
   <style>
     body {
       margin: 0;
       padding: 0;
-      /* Prevent page scrollbars */
-      overflow: hidden;
+      overflow: hidden; /* no scrollbars */
+      height: 100vh;    /* ensure the body fills the iframe */
     }
 
     /* 
-      1) Make the slider fill 100% of the HTML <body>.
-      2) Both images inside will be width:100% so they scale to 
-         whatever container (Miro iframe) gives them.
+      Make the slider fill 100% of both width and height of its parent.
+      That way, if the iframe is 800×800, .slider is exactly 800×800.
     */
     .slider {
       position: relative;
       width: 100%;
-      max-width: 100%;
+      height: 100%;
       overflow: hidden;
       user-select: none;
     }
 
-    /* “Before” image: in the normal flow, width:100% so it sets slider’s height. */
+    /* 
+      Force both images to fill 100% width & height of .slider.
+      Use object‐fit to preserve aspect‐ratio but allow letterboxing.
+    */
     .slider > img.before-img {
-      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
-      height: auto;
-      position: relative; 
+      height: 100%;
+      object-fit: contain;  /* or “cover” if you want them cropped */
       z-index: 0;
     }
 
-    /* “After” image: absolutely on top, width:100%, clipped by clip-path in % */
     .slider img.after-img {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
-      height: auto;
+      height: 100%;
+      object-fit: contain;
       z-index: 1;
-      clip-path: inset(0 50% 0 0); /* hide right 50% by default */
+      /* start by hiding the right 50%, in percentage */
+      clip-path: inset(0 50% 0 0);
     }
 
-    /* Draggable handle: moved via JS in % */
+    /* The handle still spans full container height */
     .slider .handle {
       position: absolute;
       top: 0;
-      left: 50%;         /* start at 50% */
+      left: 50%;
       width: 4px;
       height: 100%;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255,255,255,0.9);
       cursor: ew-resize;
       z-index: 2;
       transform: translateX(-2px);
@@ -71,12 +76,8 @@
 </head>
 <body>
   <div class="slider" id="slider">
-    <!--
-      We leave these two img tags in place, but without hard‐coded src.
-      JS will fill in the correct src via URL parameters.
-    -->
-    <img id="beforeImg" class="before-img" src="" alt="Before image" />
-    <img id="afterImg"  class="after-img"  src="" alt="After image"  />
+    <img id="beforeImg" class="before-img" src="" alt="Before" />
+    <img id="afterImg"  class="after-img"  src="" alt="After" />
     <div class="handle" id="handle"></div>
   </div>
 
@@ -88,72 +89,46 @@
       const handle    = document.getElementById('handle');
       let isDragging  = false;
 
-      // Helper: read URL parameters ?before=…&after=…
-      function getQueryParams() {
-        const params = new URLSearchParams(window.location.search);
-        return {
-          before: params.get('before'), // e.g. "images/breakfast_before.png"
-          after:  params.get('after')   // e.g. "images/breakfast_after.png"
-        };
+      function getParams() {
+        const p = new URLSearchParams(window.location.search);
+        return { before: p.get('before'), after: p.get('after') };
       }
 
-      // Initialize the slider
       function initSlider() {
-        const { before, after } = getQueryParams();
-        // If either one is missing, do nothing / show an error
+        const { before, after } = getParams();
         if (!before || !after) {
-          document.body.innerHTML = '<p style="color:red; font-family: sans-serif; padding:1rem;">' +
-            'Error: “before” and “after” parameters required in URL.<br>' +
-            'Usage: slider.html?before=images/foo_before.png&after=images/foo_after.png' +
-            '</p>';
+          document.body.innerHTML = '<p style="padding:1rem; font-family:sans-serif; color:red;">' +
+            'Missing ?before=…&after=… in URL</p>';
           return;
         }
-
-        // 1) Set the <img> srcs
         beforeImg.src = before;
         afterImg.src  = after;
 
-        // 2) Once the “Before” image has loaded, set initial clip/handle to 50%
+        // As soon as both images load, place the handle at 50%
         beforeImg.addEventListener('load', () => {
-          // Hide right half of the After image
           afterImg.style.clipPath = 'inset(0 50% 0 0)';
-          // Put the handle at 50%
-          handle.style.left = '50%';
+          handle.style.left       = '50%';
         });
       }
 
-      // Called when user drags the handle
       function onDrag(e) {
         if (!isDragging) return;
-        // 1) Get slider’s bounding rect in px
         const rect = slider.getBoundingClientRect();
-        // 2) Calculate pointerX relative to left edge (in px)
         let x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-        // Clamp to [0 .. rect.width]
         if (x < 0) x = 0;
         if (x > rect.width) x = rect.width;
-        // 3) Convert to percent
         const pct = (x / rect.width) * 100;
-        // 4) Set clip‐path so that left pct% is visible (hide right 100−pct%)
-        const clipRightPct = 100 - pct;
-        afterImg.style.clipPath = `inset(0 ${clipRightPct}% 0 0)`;
-        // 5) Move the handle to pct%
-        handle.style.left = pct + '%';
+        afterImg.style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
+        handle.style.left       = pct + '%';
       }
 
-      // Begin drag when user presses handle
-      handle.addEventListener('mousedown',  () => { isDragging = true; });
-      handle.addEventListener('touchstart', () => { isDragging = true; });
-
-      // Update as pointer moves
+      handle.addEventListener('mousedown',  () => isDragging = true);
+      handle.addEventListener('touchstart', () => isDragging = true);
       document.addEventListener('mousemove', onDrag);
       document.addEventListener('touchmove',   onDrag);
+      document.addEventListener('mouseup',   () => isDragging = false);
+      document.addEventListener('touchend',  () => isDragging = false);
 
-      // Stop drag when pointer is released
-      document.addEventListener('mouseup',  () => { isDragging = false; });
-      document.addEventListener('touchend', () => { isDragging = false; });
-
-      // Start everything on page load
       window.addEventListener('load', initSlider);
       if (document.readyState === 'complete') initSlider();
     })();
