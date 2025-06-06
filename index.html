@@ -2,69 +2,82 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Pixel‐Perfect A/B Slider (clip‐path)</title>
+  <title>Responsive A/B Slider (Percent-Based Clip)</title>
   <style>
-    /* 
-      1) .slider will be set to the Before-image’s exact natural pixel dimensions 
-         (via JS on load). 
-      2) Both images are absolutely stacked at the same size so we can clip the After image.
-    */
+    /******************************************
+     1) Let .slider be width:100% so it fills whatever parent/container size.
+     2) “Before” and “After” images will each be width:100%, height:auto. 
+     3) We’ll overlay “After” on top and use clip-path in %.
+    ******************************************/
+    body {
+      margin: 0;
+      padding: 0;
+      /* Prevent any default scrollbars on body */
+      overflow: hidden;
+    }
+
+    /* The slider container fills 100% of its parent’s width.
+       You can wrap this in a parent of your choosing or let Miro’s embed define it. */
     .slider {
       position: relative;
-      display: inline-block;  /* shrink-wrap to the fixed pixel size */
-      user-select: none;      /* prevent accidental text selection while dragging */
-      overflow: hidden;       /* hide any overflow by design */
+      width: 100%;
+      max-width: 100%;
+      /* Optionally give it an aspect ratio so Miro knows how tall it should be:
+         If your images are 1920×1080, you could do aspect-ratio: 16/9; 
+         but if they’re square, you could do aspect-ratio: 1/1. 
+         For this example, we’ll let the images define height automatically. */
+      overflow: hidden; 
+      user-select: none;
     }
 
-    /*********************************************
-     “Before” image:
-     - Initially in normal flow, with no forced width so the browser renders it at its 
-       intrinsic (natural) pixel size. 
-     - After load, JS will re‐position it to absolute but keep the same pixel size.
-    *********************************************/
+    /******************************************
+     “Before” image: 
+     - width:100% makes it fill the .slider’s entire (responsive) width.
+     - height:auto preserves aspect ratio, so the container’s height is set by this image.
+    ******************************************/
     .slider > img.before-img {
       display: block;
-      width: auto;   /* allow intrinsic width */
-      height: auto;  /* allow intrinsic height */
-      position: relative; /* normal flow for initial render */
-      z-index: 0;        /* below the After image */
+      width: 100%;
+      height: auto;
+      position: relative; /* normal flow */
+      z-index: 0;
     }
 
-    /*********************************************
+    /******************************************
      “After” image:
-     - Will be absolutely positioned at top-left (0,0) 
-       once JS runs, and sized to exactly the same width/height as the Before image.
-     - We apply clip-path: inset(0 [px] 0 0) so only the left portion is visible.
-    *********************************************/
+     - Absolutely stacked on top of the “Before” image.
+     - width:100% means “fill 100% of .slider’s current render width.” 
+     - We then clip it using percentage‐based clip-path.
+    ******************************************/
     .slider img.after-img {
       position: absolute;
       top: 0;
       left: 0;
-      width: 100%;     /* 100% of .slider (pixel‐locked by JS) */
-      height: auto;    /* preserve aspect ratio */
-      z-index: 1;      /* on top of Before image */
-      /* clip-path will be set/updated by JS on load & on drag */
-      clip-path: inset(0 50% 0 0); /* default fallback: hide right 50% */
+      width: 100%;
+      height: auto;
+      z-index: 1;
+      /* By default we’ll clip off the right 50% (inset(0 50% 0 0)). */
+      clip-path: inset(0 50% 0 0); 
     }
 
-    /*********************************************
-     The draggable handle (vertical bar):
-     - A thin 4px-wide div that sits on top of both images (z-index: 2).
-     - We move it in px as the user drags.
-    *********************************************/
+    /******************************************
+     Draggable handle (vertical line):
+     - Positioned by JS in percentage of slider’s width.
+     - height:100% so it spans full slider height.
+    ******************************************/
     .slider .handle {
       position: absolute;
       top: 0;
-      left: 0;           /* JS will set to half‐width on load */
-      width: 4px;        /* thickness of the divider line */
-      height: 100%;      /* full slider height */
-      background: rgba(255, 255, 255, 0.9);
+      left: 50%;
+      width: 4px;
+      height: 100%;
+      background: rgba(255,255,255,0.9);
       cursor: ew-resize;
-      z-index: 2;        /* above both images */
-      transform: translateX(-2px); /* center the 4px bar on its left coordinate */
+      z-index: 2;
+      transform: translateX(-2px);
     }
 
-    /* Small circular “knob” in the middle of the handle for better UX */
+    /* A small circular “knob” in the handle’s center */
     .slider .handle::before {
       content: '';
       position: absolute;
@@ -72,7 +85,7 @@
       left: 50%;
       width: 12px;
       height: 12px;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0,0,0,0.5);
       border-radius: 50%;
       transform: translate(-50%, -50%);
     }
@@ -80,7 +93,7 @@
 </head>
 <body>
   <div class="slider" id="slider">
-    <!-- 1) “Before” image in flow (natural pixel size) -->
+    <!-- “Before” image in flow (responsive) -->
     <img
       id="beforeImg"
       class="before-img"
@@ -88,15 +101,15 @@
       alt="Before image"
     />
 
-    <!-- 2) “After” image (will be stacked & clipped via clip-path) -->
+    <!-- “After” image, clipped via clip-path -->
     <img
+      id="afterImg"
       class="after-img"
       src="images/after.png"
       alt="After image"
-      id="afterImg"
     />
 
-    <!-- 3) The draggable vertical handle -->
+    <!-- Draggable handle -->
     <div class="handle" id="handle"></div>
   </div>
 
@@ -109,84 +122,51 @@
       let isDragging  = false;
 
       function initSlider() {
-        // If the Before image hasn’t fully loaded, wait and retry
-        if (!beforeImg.complete || beforeImg.naturalWidth === 0) {
+        // If Before image isn’t loaded, retry shortly.
+        if (!beforeImg.complete) {
           setTimeout(initSlider, 50);
           return;
         }
-
-        // 1) Read the Before image’s natural (intrinsic) pixel size
-        const naturalW = beforeImg.naturalWidth;
-        const naturalH = beforeImg.naturalHeight;
-
-        // 2) “Lock” the slider container to exactly those dimensions
-        slider.style.width  = naturalW + 'px';
-        slider.style.height = naturalH + 'px';
-
-        // 3) Switch the Before image to absolute positioning 
-        //    (so it stays exactly at those px dims, not fluid anymore)
-        beforeImg.style.position = 'absolute';
-        beforeImg.style.top  = '0';
-        beforeImg.style.left = '0';
-        beforeImg.style.width  = naturalW + 'px';
-        beforeImg.style.height = naturalH + 'px';
-
-        // 4) Also force the After image to exactly those same px dims
-        afterImg.style.position = 'absolute';
-        afterImg.style.top  = '0';
-        afterImg.style.left = '0';
-        afterImg.style.width  = naturalW + 'px';
-        afterImg.style.height = naturalH + 'px';
-
-        // 5) Initialize clip-path on the After image so that
-        //    the right half is hidden by default (px = naturalW/2)
-        const halfW = naturalW / 2; 
-        afterImg.style.clipPath = `inset(0px ${halfW}px 0px 0px)`;
-
-        // 6) Position the handle in the middle (px = halfW)
-        handle.style.left = halfW + 'px';
+        // Once loaded, we know slider’s width in px (rendered):
+        const sliderRect = slider.getBoundingClientRect();
+        // The handle and clip start at 50%:
+        afterImg.style.clipPath = 'inset(0 50% 0 0)';
+        handle.style.left       = '50%';
       }
 
       function onDrag(e) {
         if (!isDragging) return;
 
-        // 1) Get slider’s bounding rectangle (px coordinates on screen)
+        // Get slider’s bounding rect (px coords):
         const rect = slider.getBoundingClientRect();
-
-        // 2) Determine pointer X in px relative to slider’s left edge
+        // Compute pointer’s x relative to slider left (in px):
         let x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-
-        // 3) Clamp x into [0 .. sliderWidth]
+        // Clamp to [0..sliderWidth]:
         if (x < 0) x = 0;
         if (x > rect.width) x = rect.width;
-
-        // 4) Compute how many px of the After image should remain visible
-        //    → we clip everything to the right of x: clipPath inset right = sliderWidth - x
-        const sliderWidth = rect.width;
-        const clipRightPx = sliderWidth - x;
-
-        // 5) Apply clip-path in px: hide the “clipRightPx” on the right side
-        afterImg.style.clipPath = `inset(0px ${clipRightPx}px 0px 0px)`;
-
-        // 6) Move the handle to x (px) so the vertical bar follows the pointer
-        handle.style.left = x + 'px';
+        // Convert to percent of slider width:
+        const pct = (x / rect.width) * 100;
+        // Clip the After image so that “pct%” is visible (i.e. inset right = 100% - pct%):
+        const clipRightPct = 100 - pct;
+        afterImg.style.clipPath = `inset(0 ${clipRightPct}% 0 0)`;
+        // Move the handle to pct%:
+        handle.style.left = pct + '%';
       }
 
-      // Enable dragging when user presses down on the handle
-      handle.addEventListener('mousedown', () => { isDragging = true; });
+      // Start dragging:
+      handle.addEventListener('mousedown',  () => { isDragging = true; });
       handle.addEventListener('touchstart', () => { isDragging = true; });
 
-      // Update clip-path & handle position as the pointer moves
+      // Update on pointer move:
       document.addEventListener('mousemove', onDrag);
-      document.addEventListener('touchmove', onDrag);
+      document.addEventListener('touchmove',   onDrag);
 
-      // Stop dragging when the pointer is released
+      // Stop dragging:
       document.addEventListener('mouseup',   () => { isDragging = false; });
-      document.addEventListener('touchend', () => { isDragging = false; });
+      document.addEventListener('touchend',  () => { isDragging = false; });
 
-      // Initialize the slider once the page (and images) have loaded
+      // Initialize on load:
       window.addEventListener('load', initSlider);
-      // In case everything was already complete, also call it once more
       if (document.readyState === 'complete') initSlider();
     })();
   </script>
