@@ -23,13 +23,13 @@
       Force images to “own” no extra space, then absolutely fill the .ab-slider.
     */
     .ab-slider img {
-      display: block;
-      position: absolute; /* sit on top of each other */
+      position: absolute;
       top: 0;
       left: 0;
-      width: 100%;
-      height: auto;       /* preserve aspect‐ratio */
+      width: 100%;   /* ALWAYS fill the slider’s full width */
+      height: auto;  /* keep aspect ratio */
     }
+
 
     /* 
       The “After” wrapper will literally mask (clip) the after‐image. 
@@ -42,10 +42,9 @@
       left: 0;
       width: 50%;         /* start “half revealed” */
       height: 100%;
-      overflow: hidden;   /* clip anything outside width */
-      pointer-events: none; /* ensure handle can capture the drag */
-      z-index: 1;         /* sit above the “Before” image */
+      overflow: hidden;   /* anything outside this 50% box is clipped */
     }
+
 
     /* 
       The “After” image itself also needs to be absolutely full‐width 
