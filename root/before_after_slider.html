@@ -1,1 +1,116 @@
-https://mconnorEA.github.io/ABslider/before_after_slider.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Custom A/B Image Slider</title>
+  <style>
+    /* Container for the entire slider */
+    .ab-slider {
+      position: relative;
+      width: 800px;       /* Adjust to your desired max width */
+      max-width: 100%;
+      overflow: hidden;
+      user-select: none;  /* Prevent text/image selection while dragging */
+      margin: 0 auto;     /* Center horizontally */
+    }
+
+    /* Both images share these basic styles */
+    .ab-slider img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* "After" image wrapper that will be clipped */
+    .ab-slider .after {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 50%;        /* Start with 50% reveal */
+      height: 100%;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    /* Draggable vertical handle/divider */
+    .ab-slider .handle {
+      position: absolute;
+      top: 0;
+      left: 50%;         /* Match the initial 50% width of .after */
+      width: 4px;        /* Thicker line for better visibility */
+      height: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      cursor: ew-resize;
+      z-index: 2;
+      transform: translateX(-2px); /* Center the 4px-wide handle */
+    }
+
+    /* Optional: add a label or dot on the handle for UX */
+    .ab-slider .handle::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 12px;
+      height: 12px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
+</head>
+<body>
+  <div class="ab-slider" id="mySlider">
+    <!-- BEFORE image: this sits at 100% width in the background -->
+    <img src="https://example.com/image_before.jpg" alt="Before image" />
+
+    <!-- AFTER image: clipped via .after width -->
+    <div class="after">
+      <img src="https://example.com/image_after.jpg" alt="After image" />
+    </div>
+
+    <!-- Draggable handle -->
+    <div class="handle" id="sliderHandle"></div>
+  </div>
+
+  <script>
+    (function() {
+      const slider = document.getElementById('mySlider');
+      const handle = document.getElementById('sliderHandle');
+      const after = slider.querySelector('.after');
+      let isDragging = false;
+
+      // Function to update the clip width and handle position based on cursor
+      function onDrag(e) {
+        if (!isDragging) return;
+
+        // Get bounding rectangle of slider
+        const rect = slider.getBoundingClientRect();
+        // Determine pointer X coordinate relative to slider's left edge
+        let x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+
+        // Clamp x between 0 and slider width
+        if (x < 0) x = 0;
+        if (x > rect.width) x = rect.width;
+
+        // Calculate percentage (0–100) and apply it
+        const pct = (x / rect.width) * 100;
+        after.style.width = pct + '%';
+        handle.style.left = pct + '%';
+      }
+
+      // When user presses down on the handle (mouse or touch), start dragging
+      handle.addEventListener('mousedown', () => { isDragging = true; });
+      handle.addEventListener('touchstart', () => { isDragging = true; });
+
+      // When user moves pointer, update only if isDragging = true
+      document.addEventListener('mousemove', onDrag);
+      document.addEventListener('touchmove', onDrag);
+
+      // When user releases mouse/touch, stop dragging
+      document.addEventListener('mouseup', () => { isDragging = false; });
+      document.addEventListener('touchend', () => { isDragging = false; });
+    })();
+  </script>
+</body>
+</html>
